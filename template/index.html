@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto RSI Dashboard</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f5f5f5;
+        }
+        .container {
+            margin-top: 30px;
+        }
+        .crypto-pair {
+            font-size: 1.2em;
+        }
+        .alert {
+            font-size: 1.1em;
+            margin-top: 15px;
+        }
+        .rsi-chart {
+            margin-top: 50px;
+            width: 100%;
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">Crypto RSI Dashboard</h1>
+        <div class="row">
+            <div class="col-md-6">
+                <h3>Current RSI Values</h3>
+                <ul id="rsiList" class="list-group">
+                    <!-- Dynamic RSI values will be appended here -->
+                </ul>
+            </div>
+            <div class="col-md-6 text-center">
+                <button class="btn btn-primary" id="refreshButton">Refresh RSI Data</button>
+                <div id="status" class="alert alert-info mt-3">Status: Waiting for data...</div>
+            </div>
+        </div>
+
+        <div class="rsi-chart" id="rsiChart"></div>
+    </div>
+
+    <!-- Include JS libraries -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <script>
+        // Fetch RSI data and update the list and graph
+        function fetchRsiData() {
+            $.get('/refresh', function(response) {
+                $('#status').text('Status: Data refreshed!');
+                updateRsiList();
+            }).fail(function() {
+                $('#status').text('Status: Failed to refresh data!');
+            });
+        }
+
+        // Update the RSI values list
+        function updateRsiList() {
+            $.get('/rsi-values', function(response) {
+                $('#rsiList').empty();
+                for (const pair in response) {
+                    const rsiValue = response[pair];
+                    let alertClass = 'alert-info';
+                    if (rsiValue > 70) {
+                        alertClass = 'alert-danger'; // Overbought
+                    } else if (rsiValue < 30) {
+                        alertClass = 'alert-success'; // Oversold
+                    }
+                    $('#rsiList').append(`
+                        <li class="list-group-item ${alertClass} crypto-pair">
+                            <strong>${pair}</strong> RSI: ${rsiValue}
+                        </li>
+                    `);
+                }
+            });
+        }
+
+        // Function to draw RSI graph using Plotly
+        function drawRsiChart(rsiValues) {
+            const pairs = Object.keys(rsiValues);
+            const rsiData = Object.values(rsiValues);
+
+            const trace = {
+                x: pairs,
+                y: rsiData,
+                type: 'scatter',
+                mode: 'markers+text',
+                text: pairs,
+                marker: { size: 12, color: 'blue' }
+            };
+
+            const layout = {
+                title: 'RSI Chart',
+                xaxis: { title: 'Crypto Pair' },
+                yaxis: { title: 'RSI Value', range: [0, 100] },
+                shapes: [
+                    { type: 'line', x0: 0, x1: 1, y0: 70, y1: 70, line: { color: 'red', width: 2, dash: 'dash' }},
+                    { type: 'line', x0: 0, x1: 1, y0: 30, y1: 30, line: { color: 'green', width: 2, dash: 'dash' }}
+                ]
+            };
+
+            Plotly.newPlot('rsiChart', [trace], layout);
+        }
+
+        // Set up initial data
+        $(document).ready(function() {
+            updateRsiList();
+            setInterval(fetchRsiData, 180000); // Auto-refresh every 3 minutes
+            $('#refreshButton').click(fetchRsiData);
+        });
+    </script>
+</body>
+</html>
