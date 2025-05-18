@@ -164,7 +164,6 @@ python-json-logger==3.2.1
 python-socketio==5.13.0
 pytz==2025.1
 pyunormalize==16.0.0
-pywin32==308
 pywinpty==2.0.15
 PyYAML==6.0.2
 pyzmq==26.2.1
