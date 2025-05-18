@@ -11,6 +11,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_frozen import Freezer
 import threading    
+from flask import Flask, render_template, jsonify, request
 
 # Disable interactive mode initially (graph won't show until data is loaded)
 plt.ion()
@@ -82,14 +83,19 @@ def fetch_data(symbol, granularity="15m", product_type="USDT-FUTURES"):
             time.sleep(60)
 
 # Crypto pairs
-pairs = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "SOLUSDT", "ADAUSDT",
-         "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT"]
+pairs = list(set(["BTCUSDT", "ETHUSDT", "XRPUSDT", "SOLUSDT", "ADAUSDT",
+         "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "ETHFIUSDT", "MYXUSDT", "SHMUSDT","DOODUSDT","SKYAIUSDT","RDACUSDT","LAUNCHCOINUSDT","NXPCUSDT","PRAIUSDT","MAGICUSDT","AXSUSDT","THETAUSDT","GALAUSDT","MANAUSDT","SANDUSDT","RSRUSDT","SNXUSDT","BLURUSDT","MINAUSDT","FETUSDT","PUFFERUSDT","SAFEUSDT","DRIFTUSDT","GRIFFAINUSDT","FIDAUSDT","FIOUSDT","FLMUSDT","FLOWUSDT","DFUSDT","FORTHUSDT","FORMUSDT","ATOMUSDT","AXSUSDT","ARUSDT","ALICEUSDT","ALGOUSDT","APEUSDT","APTUSDT","AUDIOUSDT","BNBUSDT","XRPUSDT","SOLUSDT","DOTUSDT","DOGEUSDT","AVAXUSDT","ADAUSDT","LTCUSDT","LINKUSDT","UNIUSDT","ATOMUSDT",
+         "FILUSDT","XLMUSDT","ETCUSDT","VETUSDT","APTUSDT","SUSHIUSDT","AVAXUSDT","ADAUSDT","AAVEUSDT","KSMUSDT","KNCUSDT","NEARUSDT","ETCUSDT","CHZUSDT","PAXGUSDT","MANAUSDT","LRCUSDT","COMPUSDT","GMTUSDT","ENSUSDT","DYDXUSDT","WIFUSDT","SNXUSDT","ZILUSDT","ZRXUSDT","BATUSDT","FILUSDT","GRTUSDT","SXPUSDT","OPUSDT","LUNAUSDT","LAYERUSDT","EGLDUSDT","AXSUSDT","LDOUSDT","CAKEUSDT","RSRUSDT","QTUMUSDT","IMXUSDT","OGNUSDT","ARPAUSDT","PEOPLEUSDT","1INCHUSDT","SUNUSDT","MKRUSDT","JSTUSDT","C98USDT","MASKUSDT","MINAUSDT","HOTUSDT", "SUPERUSDT", "SPELLUSDT",
+"STGUSDT","ONTUSDT", "NKNUSDT",
+"ALPINEUSDT", "OGUSDT", "BANDUSDT",
+"AGLDUSDT", "HOOKUSDT", "CTSIUSDT", "BNTUSDT", "PROMUSDT","MOODENGUSDT","PORTALUSDT","SUIUSDT","FARTCOINUSDT","TRUMPUSDT","REIUSDT","PEPEUSDT","MAIUSDT","SUSDT","GODSUSDT","VIRTUALUSDT","ALCHUSDT","KAITOUSDT","BRETTUSDT","GOATUSDT","TAOUSDT","CHILLGUYUSDT","ANIMEUSDT","POPCATUSDT","SYRUPUSDT","KASUSDT","PEOPLEUSDT","1000BONKUSDT","BOMEUSDT","WCTUSDT","SWELLUSDT","TURBOUSDT","PUNDIXUSDT","AI16ZUSDT","VOXELUSDT","GASUSDT","TSTBSCUSDT","JUPUSDT","JASMYUSDT","MOVEUSDT","HOUSEUSDT","MUBARAKUSDT","KILOUSDT","BABYUSDT","AIXBTUSDT","1MBABYDOGEUSDT","MOCAUSDT","BERAUSDT","TOSHIUSDT","RSS3USDT","TAIKOUSDT","AERGOUSDT","PIPPINUSDT","AIOTUSDT","HAEDALUSDT","BSWUSDT","EIGENUSDT","1000SATSUSDT","DEEPUSDT","1000000MOGUSDT","HMSTRUSDT","DOGSUSDT","FIOUSDT","XUSDT","10000WHYUSDT","ZKJUSDT","SOLVUSDT","DARKUSDT","XAIUSDT","AIUSDT","GUNUSDT","MBOXUSDT","MANAUSDT","OLUSDT","1000CATUSDT","ALPINEUSDT","BIGTIMEUSDT","ACEUSDT","MORPHOUSDT","VELODROMEUSDT","KOMAUSDT","LOOKSUSDT","BIOUSDT","DEXEUSDT","MERLUSDT","USUALUSDT","XVSUSDT","BEAMUSDT","LUMIAUSDT","FHEUSDT","LRCUSDT","NAVXUSDT","OBOLUSDT",""
+]))
 
 # === Email Alert Mechanism ===
-def check_rsi_and_send_email():
+def check_rsi_and_send_email(interval="15m"):
     for pair in pairs:
-        print(f"📊 Checking RSI for {pair}...")
-        df = fetch_data(pair)
+        print(f"📊 Checking RSI for {pair} with interval {interval}...")
+        df = fetch_data(pair, granularity=interval)
         if df is not None:
             rsi = df['rsi'].iloc[-1]
             if rsi > 70:
@@ -98,7 +104,7 @@ def check_rsi_and_send_email():
                 send_email(f"RSI Oversold Alert for {pair}", f"{pair} has crossed the oversold threshold! RSI={rsi}", "user@example.com")
 
 # === Auto-refresh loop ===
-def plot_rsi_graph():
+def plot_rsi_graph(interval="15min"):
     plt.ion()  # Interactive mode for live updates
 
     while True:
@@ -152,7 +158,7 @@ def plot_rsi_graph():
         print("\n⏳ Refreshing in 3 minutes...")
         plt.pause(120)  # Pause for 3 minutes before next update
 
-def plot_rsi_graph_forever():
+def plot_rsi_graph_forever(interval="15min"):
     plt.ion()
     while True:
         now = datetime.utcnow()
@@ -197,9 +203,11 @@ def plot_rsi_graph_forever():
 # === Flask Route to Trigger RSI Recalculation ===
 @app.route('/refresh', methods=['GET'])
 def refresh_data():
-    print("🔄 Refreshing RSI data...")
-    check_rsi_and_send_email()  # Recalculate RSI and send email alerts
-    return jsonify({"message": "RSI data refreshed and emails sent!"})
+    interval = request.args.get('interval', default="15m")
+    print(f"🔄 Refreshing RSI data for interval: {interval}")
+    print(f"🔄 Received refresh request with interval: {interval}")
+    check_rsi_and_send_email(interval)
+    return jsonify({"message": f"RSI data refreshed for interval {interval} and emails sent!"})
 
 # Add this route to serve the index.html page
 @app.route('/')
@@ -209,14 +217,15 @@ def index():
 # Add this route to serve the current RSI data in JSON format
 @app.route('/rsi-values', methods=['GET'])
 def rsi_values():
+    interval = request.args.get('interval', default="15m")
+    print(f"🔍 Getting RSI values for interval: {interval}")  # ✅ Add this
     all_data = {}
     for pair in pairs:
-        print(f"📊 Fetching data for {pair}...")
-        df = fetch_data(pair)
+        print(f"📊 Fetching data for {pair} with interval {interval}...")
+        df = fetch_data(pair, granularity=interval)
         if df is not None:
             all_data[pair] = df['rsi'].iloc[-1]
         time.sleep(0.1)
-
     return jsonify(all_data)
 
 # Function to run Flask app in a separate thread
@@ -230,9 +239,9 @@ if __name__ == "__main__":
     flask_thread.start()
 
     # RSI plotting thread (infinite loop)
-    rsi_thread = threading.Thread(target=plot_rsi_graph_forever)
-    rsi_thread.daemon = True
-    rsi_thread.start()
+    # rsi_thread = threading.Thread(target=plot_rsi_graph_forever)
+    # rsi_thread.daemon = True
+    # rsi_thread.start()
 
     # Keep main thread alive
     while True:
